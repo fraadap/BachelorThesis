@@ -443,11 +443,9 @@ def assign_walking(trips):
                     else:
                         trips["walking"][day].append((start_inter, stop_inter, label))
 
-                    trips[mode][day].pop(i)  # splitta andata e ritorno in due viaggi diversi
-                    # if start_is_late and not is_late(start_inter):
-                    #    trips[mode][day_after(day, -1)].append((trip[0], trip[1], trip[4]))
-                    # else:
-                    trips[mode][day].append((trip[0], trip[1], trip[4]))
+                    #trips[mode][day].pop(i)  # splitta andata e ritorno in due viaggi diversi
+
+                    trips[mode][day][i] = (trip[0], trip[1], trip[4])
 
                     if not is_late(stop_inter) and start_is_late:
                         trips[mode][day_after(day, 1)].append((trip[2], trip[3], trip[4]))
@@ -484,8 +482,29 @@ def add_home_state(trips):
             for i in range(len(intervals_day) - 1):
                 if time_to_minutes(intervals_day[i][1]) + 1 != time_to_minutes(intervals_day[i+1][0]) :  # se c'è dello spazio
                     trips["walking"][day].append((minutes_after(intervals_day[i][1], 1),
-                                                  minutes_after(intervals_day[i+1][0], -1), "home"))
+                                                 minutes_after(intervals_day[i+1][0], -1), "home"))
+    for day in days:
+        if trips["walking"][day] == []:
+            trips["walking"][day].append(("00.00", "23.59", "home"))
 
+    return trips
+
+
+def merge_dicts(trips):
+    merged = {day: [] for day in days}
+    for day in days:
+        intervals_day = []
+        for mode in trips:
+            temp = trips[mode][day]
+            for i in range(len(temp)):
+                if mode != "walking":
+                    temp[i] = (temp[i][0], temp[i][1], temp[i][2].replace("act", mode))
+                    temp[i] = (temp[i][0], temp[i][1], temp[i][2].replace("work", mode))
+                else:
+                    temp[i] = (temp[i][0], temp[i][1], temp[i][2].replace("walking_to_work", mode))
+            intervals_day += temp
+        intervals_day.sort()
+        merged[day] = intervals_day
     return trips
 
 
@@ -527,12 +546,13 @@ def prepare_data(us_h):
     us_h['trips'] = extract_auto_activities(str(us_h['activities']))
     us_h['trips'] = extract_working_trips(us_h['commute'], us_h['trips'])
     us_h['trips'] = resolve_conflicts(us_h['trips'])
-    print(us_h['trips'])
     us_h['trips'] = assign_walking(us_h['trips'])
     us_h['trips'] = split_midnight_trips(us_h['trips'])
     us_h['trips'] = add_home_state(us_h['trips'])
     us_h['trips'] = sort_trips(us_h['trips'])
-    print(us_h['trips'], "\n\n")
+    #print(us_h['trips'], "")
+    us_h['trips'] = merge_dicts(us_h['trips'])
+
     return us_h
 
 
